@@ -166,11 +166,16 @@ void del_case(std::vector<std::string>& case_ids) {
   std::cout<<"Done!"<<std::endl;
 }
 
-void test(std::string source_name) {
+void test_case(std::string source_name) {
   // compile source file under current directory.
   //
-  std::string cmd_str = "g++ -std=c++11 ./" + source_name + ".cpp > /tmp/cf_compile_out";
-  std::system(cmd_str.c_str());
+  std::string cmd_str = "g++ -std=c++11 " + source_name + ".cpp > /tmp/cf_compile_out";
+  try {
+    std::system(cmd_str.c_str());
+  } catch (std::exception& e) {
+    std::cout<<"exception: "<<e.what()<<std::endl;
+    return ;
+  }
   std::cout<<std::ifstream("/tmp/cf_compile_out").rdbuf()<<std::endl; 
 
   // query all cases by source name, write to file under /tmp/{source_name}_cases_input.data,/tmp/{source_name}_cases_ans.data.
@@ -207,15 +212,56 @@ void test(std::string source_name) {
   // run current program with test input, pipe output to /tmp/{source_name}_cases_output.data
   //
   cmd_str = "cat " + case_input_fn + "| ./a.out > " + case_output_fn;
-  std::system(cmd_str.c_str()); 
+  try{
+    std::system(cmd_str.c_str()); 
+  } catch (std::exception& e) {
+    std::cout<<"exception: "<<e.what()<<std::endl;
+    return ;
+  }
 
   // check the differences between /tmp/{source_name}_cases_ans.data with /tmp/{source_name}_cases_output.data
   //
+  std::ifstream foutput_diff(case_output_fn);
+  std::ifstream fans_diff(case_ans_fn);
+  std::string line1, line2;
+  
+  bool has_diff = false; 
+  int line_no = 1;
+  while (true) {
+    if (foutput_diff.eof() || fans_diff.eof()) {
+      break;
+    }
+    foutput_diff>>line1;
+    fans_diff>>line2; 
+    if (line1 != line2) {
+      std::cout<<"line no:"<<line_no<<" diff:"<<std::endl;
+      std::cout<<line1<<std::endl;
+      std::cout<<line2<<std::endl;
+      has_diff = true;
+      break; 
+    }
+    line_no++;
+  }
+  if (!foutput_diff.eof() || !fans_diff.eof()) {
+    has_diff = true;
+  }
+  
+  foutput_diff.close();
+  fans_diff.close(); 
+
+  if (has_diff) {
+    std::cout<<"Failed"<<std::endl;
+  } else {
+    std::cout<<"Pass"<<std::endl;
+  }
 
   std::cout<<"Done!"<<std::endl;
+  std::cout.flush();
 }
 
 int main(int argc, char* argv[]) {
+  std::ios_base::sync_with_stdio(false);
+
   po::options_description desc("Support options");
   std::string dir;
   desc.add_options()
@@ -263,7 +309,7 @@ int main(int argc, char* argv[]) {
 
   if (vm.count("test")) {
     std::string source_name = vm["test"].as<std::string>();
-    test(source_name);
+    test_case(source_name);
     return 0;
   }
 
