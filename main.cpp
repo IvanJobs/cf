@@ -36,7 +36,6 @@ void new_contest(std::string contest_name) {
     std::cout<<"exception: "<<e.what()<<std::endl;
     return ;
   }
-  std::cout<<"Done!"<<std::endl;
 }
 
 void add_case(std::string source_name) {
@@ -106,8 +105,6 @@ void add_case(std::string source_name) {
     std::cout<<INSERT_ONE_CASE<<std::endl;
     return ;
   }
-
-  std::cout<<"Done!"<<std::endl;
 }
 
 void ls_case(std::string source_name) {
@@ -130,8 +127,6 @@ void ls_case(std::string source_name) {
     std::cout<<LS_CASES<<std::endl;
     return ;
   }
-  
-  std::cout<<"Done!"<<std::endl;
 }
 
 void del_case(std::vector<std::string>& case_ids) {
@@ -162,21 +157,23 @@ void del_case(std::vector<std::string>& case_ids) {
       return ; 
     }
   }
-
-  std::cout<<"Done!"<<std::endl;
 }
 
 void test_case(std::string source_name) {
   // compile source file under current directory.
   //
+  int shell_ret = -1;
   std::string cmd_str = "g++ -std=c++11 " + source_name + ".cpp > /tmp/cf_compile_out";
   try {
-    std::system(cmd_str.c_str());
+    shell_ret = std::system(cmd_str.c_str());
   } catch (std::exception& e) {
     std::cout<<"exception: "<<e.what()<<std::endl;
     return ;
   }
-  std::cout<<std::ifstream("/tmp/cf_compile_out").rdbuf()<<std::endl; 
+  if (shell_ret != 0) {
+    std::cout<<"exception: shell_ret is not 0, something bad happened during compilationi."<<std::endl;
+    return ;
+  }
 
   // query all cases by source name, write to file under /tmp/{source_name}_cases_input.data,/tmp/{source_name}_cases_ans.data.
   //
@@ -185,7 +182,7 @@ void test_case(std::string source_name) {
   try {
     SQLite::Statement query(db, SELECT_CASES.c_str());
     query.bind(1, source_name);
-   
+    
     while(query.executeStep()) {
       std::string case_input = query.getColumn(0).getText();
       std::string case_output = query.getColumn(1).getText();
@@ -198,65 +195,59 @@ void test_case(std::string source_name) {
     std::cout<<SELECT_CASES<<std::endl;
     return ;
   }
-  
-  std::string case_input_fn = "/tmp/" + source_name + "_cases_input.data";
-  std::string case_ans_fn = "/tmp/" + source_name + "_cases_ans.data";
-  std::string case_output_fn = "/tmp/" + source_name + "_cases_output.data";
-  
-  std::ofstream finput(case_input_fn.c_str());
-  std::ofstream foutput(case_ans_fn.c_str());
-  finput<<boost::algorithm::join(inputs, "\n");
-  foutput<<boost::algorithm::join(anses, "\n"); 
-  finput.close();
-  foutput.close(); 
-  // run current program with test input, pipe output to /tmp/{source_name}_cases_output.data
-  //
-  cmd_str = "cat " + case_input_fn + "| ./a.out > " + case_output_fn;
-  try{
-    std::system(cmd_str.c_str()); 
-  } catch (std::exception& e) {
-    std::cout<<"exception: "<<e.what()<<std::endl;
+  if (inputs.empty() || anses.empty()) {
+    std::cout<<"Strange! Didn't get cases from the database, why?"<<std::endl;
     return ;
-  }
+  } 
 
-  // check the differences between /tmp/{source_name}_cases_ans.data with /tmp/{source_name}_cases_output.data
-  //
-  std::ifstream foutput_diff(case_output_fn);
-  std::ifstream fans_diff(case_ans_fn);
-  std::string line1, line2;
-  
-  bool has_diff = false; 
-  int line_no = 1;
-  while (true) {
-    if (foutput_diff.eof() || fans_diff.eof()) {
-      break;
+  // iterate every case, and check.
+  for (size_t i = 0; i < inputs.size(); i++) {
+    int case_num = i + 1;
+    // write case_input to /tmp/{source_name}_case_{case_num}.in
+    // write case_ans to /tmp/{source_name}_case_{case_num}.ans
+    // run the program with case_input and write output to /tmp/{source_name}_case_{case_num}.out
+    std::string fn_case_in = "/tmp/" + source_name + "_case_" + boost::lexical_cast<std::string>(case_num) + ".in";
+    std::string fn_case_ans = "/tmp/" + source_name + "_case_" + boost::lexical_cast<std::string>(case_num) + ".ans";
+    std::string fn_case_out = "/tmp/" + source_name + "_case_" + boost::lexical_cast<std::string>(case_num) + ".out";
+
+    std::ofstream fh_case_in(fn_case_in);
+    std::ofstream fh_case_ans(fn_case_ans);
+    fh_case_in<<inputs[i];
+    fh_case_ans<<anses[i];
+    fh_case_in.close();
+    fh_case_ans.close();
+
+    std::string cmd_str = "cat " + fn_case_in + " | ./a.out > " + fn_case_out;
+    int shell_ret = -1;
+    try {
+      shell_ret = std::system(cmd_str.c_str());
+    } catch (std::exception& e) {
+      std::cout<<"exception: "<<e.what()<<std::endl;
+      return ;
     }
-    foutput_diff>>line1;
-    fans_diff>>line2; 
-    if (line1 != line2) {
-      std::cout<<"line no:"<<line_no<<" diff:"<<std::endl;
-      std::cout<<line1<<std::endl;
-      std::cout<<line2<<std::endl;
-      has_diff = true;
-      break; 
+    if (shell_ret != 0) {
+      std::cout<<"cmd_str: "<<cmd_str<<std::endl;
+      std::cout<<"bash failed!"<<std::endl;
+      return ;
     }
-    line_no++;
-  }
-  if (!foutput_diff.eof() || !fans_diff.eof()) {
-    has_diff = true;
-  }
-  
-  foutput_diff.close();
-  fans_diff.close(); 
 
-  if (has_diff) {
-    std::cout<<"Failed"<<std::endl;
-  } else {
-    std::cout<<"Pass"<<std::endl;
+    shell_ret = -1;
+    cmd_str = "diff -Z -B " + fn_case_ans + " " + fn_case_out;
+    try {
+      shell_ret = std::system(cmd_str.c_str());
+    } catch (std::exception& e) {
+      std::cout<<"exception: "<<e.what()<<std::endl;
+      return ;
+    }
+    if (shell_ret != 0) {
+      std::cout<<"case num: "<< case_num << " failed!"<<std::endl;
+      std::cout<<"please compare the diff between following two files:"<<std::endl;
+      std::cout<<fn_case_out<<std::endl;
+      std::cout<<fn_case_ans<<std::endl; 
+    } else {
+      std::cout<<"case "<<case_num<<" Pass!"<<std::endl;
+    }
   }
-
-  std::cout<<"Done!"<<std::endl;
-  std::cout.flush();
 }
 
 int main(int argc, char* argv[]) {
@@ -265,14 +256,14 @@ int main(int argc, char* argv[]) {
   po::options_description desc("Support options");
   std::string dir;
   desc.add_options()
-    ("help,H", "show help message.")
-    ("new,N", po::value<std::string>(), "new a contest.")
+    ("help,h", "show help message.")
+    ("new,n", po::value<std::string>(), "new a contest.")
     // case management
-    ("case-add,A", po::value<std::string>(), "add a test case, argument is source file name without type suffix.")
-    ("case-ls,L", po::value<std::string>(), "list all test cases, argument is source file name without type suffix.")
-    ("case-del,D", po::value< std::vector<std::string> >(), "delete test cases, first one is source name.")
+    ("case-add,a", po::value<std::string>(), "add A test case,!!!!don't add multiple cases once!!!!! argument is source file name without type suffix.")
+    ("case-ls,l", po::value<std::string>(), "list all test cases, argument is source file name without type suffix.")
+    ("case-del,d", po::value< std::vector<std::string> >(), "delete test cases, first one is source name.")
     // run test
-    ("test,T", po::value<std::string>(), "run a test suite.");
+    ("test,t", po::value<std::string>(), "run a test suite.");
 
   po::variables_map vm;
   po::store(po::parse_command_line(argc, argv, desc), vm);
