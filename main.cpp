@@ -4,6 +4,7 @@
 #include <boost/filesystem.hpp>
 #include <boost/algorithm/string/join.hpp>
 #include <boost/algorithm/string.hpp>
+#include <boost/lexical_cast.hpp>
 
 #include <SQLiteCpp/SQLiteCpp.h>
 
@@ -14,6 +15,8 @@ const std::string CREATE_TABLE_CASES = "CREATE TABLE IF NOT EXISTS cases (id INT
 const std::string GET_MAX_ID = "SELECT MAX(id) FROM cases WHERE tag = ?;";
 const std::string INSERT_ONE_CASE = "INSERT INTO cases VALUES (?, ?, ?, ?);";
 const std::string LS_CASES = "SELECT * FROM cases WHERE tag = ?;";
+const std::string DEL_CASES = "DELETE FROM cases WHERE tag = ? AND id = ?;";
+const std::string SELECT_CASES = "SELECT case_input, case_output FROM cases WHERE tag = ?;";
 
 void new_contest(std::string contest_name) {
   // create contest dir
@@ -132,19 +135,98 @@ void ls_case(std::string source_name) {
 }
 
 void del_case(std::vector<std::string>& case_ids) {
+  // first case_id is source_name
+  //
+  if (case_ids.size() < 2) {
+    std::cout<<"Wrong format of arguments!"<<std::endl;
+    return ;
+  } 
 
+  std::string source_name = case_ids[0];
+  size_t n = case_ids.size();
+
+  SQLite::Database db("./cf.db3", SQLite::OPEN_READWRITE|SQLite::OPEN_CREATE);
+
+  for (size_t i = 1; i < n; i++) {
+    int case_id = boost::lexical_cast<int>(case_ids[i]);
+
+    try {
+      SQLite::Statement query(db, DEL_CASES.c_str());
+      query.bind(1, source_name);
+      query.bind(2, case_id);
+      
+      query.exec();
+    } catch (std::exception& e) {
+      std::cout<<"exception: "<<e.what()<<std::endl;
+      std::cout<<DEL_CASES<<std::endl;
+      return ; 
+    }
+  }
+
+  std::cout<<"Done!"<<std::endl;
+}
+
+void test(std::string source_name) {
+  // compile source file under current directory.
+  //
+  std::string cmd_str = "g++ -std=c++11 ./" + source_name + ".cpp > /tmp/cf_compile_out";
+  std::system(cmd_str.c_str());
+  std::cout<<std::ifstream("/tmp/cf_compile_out").rdbuf()<<std::endl; 
+
+  // query all cases by source name, write to file under /tmp/{source_name}_cases_input.data,/tmp/{source_name}_cases_ans.data.
+  //
+  SQLite::Database db("./cf.db3", SQLite::OPEN_READWRITE | SQLite::OPEN_CREATE);
+  std::vector<std::string> inputs, anses; 
+  try {
+    SQLite::Statement query(db, SELECT_CASES.c_str());
+    query.bind(1, source_name);
+   
+    while(query.executeStep()) {
+      std::string case_input = query.getColumn(0).getText();
+      std::string case_output = query.getColumn(1).getText();
+      
+      inputs.push_back(case_input);
+      anses.push_back(case_output); 
+    }
+  } catch (std::exception& e) {
+    std::cout<<"exception: "<<e.what()<<std::endl;
+    std::cout<<SELECT_CASES<<std::endl;
+    return ;
+  }
+  
+  std::string case_input_fn = "/tmp/" + source_name + "_cases_input.data";
+  std::string case_ans_fn = "/tmp/" + source_name + "_cases_ans.data";
+  std::string case_output_fn = "/tmp/" + source_name + "_cases_output.data";
+  
+  std::ofstream finput(case_input_fn.c_str());
+  std::ofstream foutput(case_ans_fn.c_str());
+  finput<<boost::algorithm::join(inputs, "\n");
+  foutput<<boost::algorithm::join(anses, "\n"); 
+  finput.close();
+  foutput.close(); 
+  // run current program with test input, pipe output to /tmp/{source_name}_cases_output.data
+  //
+  cmd_str = "cat " + case_input_fn + "| ./a.out > " + case_output_fn;
+  std::system(cmd_str.c_str()); 
+
+  // check the differences between /tmp/{source_name}_cases_ans.data with /tmp/{source_name}_cases_output.data
+  //
+
+  std::cout<<"Done!"<<std::endl;
 }
 
 int main(int argc, char* argv[]) {
   po::options_description desc("Support options");
   std::string dir;
   desc.add_options()
-    ("help,H", "show help message")
-    ("dir", po::value<std::string>(&dir)->default_value("./"))
-    ("new,N", po::value<std::string>(), "new a contest")
-    ("case-add,A", po::value<std::string>(), "add a test case")
-    ("case-ls,L", po::value<std::string>(), "list all test cases")
-    ("case-del,D", po::value< std::vector<std::string> >(), "delete test cases");
+    ("help,H", "show help message.")
+    ("new,N", po::value<std::string>(), "new a contest.")
+    // case management
+    ("case-add,A", po::value<std::string>(), "add a test case, argument is source file name without type suffix.")
+    ("case-ls,L", po::value<std::string>(), "list all test cases, argument is source file name without type suffix.")
+    ("case-del,D", po::value< std::vector<std::string> >(), "delete test cases, first one is source name.")
+    // run test
+    ("test,T", po::value<std::string>(), "run a test suite.");
 
   po::variables_map vm;
   po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -173,9 +255,15 @@ int main(int argc, char* argv[]) {
     return 0;
   }
 
-  if (vm.count("case-del") || vm.count("D")) {
+  if (vm.count("case-del")) {
     std::vector<std::string> case_ids = vm["case-del"].as<std::vector<std::string> >();
     del_case(case_ids);
+    return 0;
+  }
+
+  if (vm.count("test")) {
+    std::string source_name = vm["test"].as<std::string>();
+    test(source_name);
     return 0;
   }
 

@@ -10,8 +10,8 @@ Command Line Tool For Codeforces.
 
 # CLI 
 
-cf help // show help messages.
-cf new {contest_name} // new a contest.
-cf case add // add a case
-cf case ls // list test cases
-cf case del // delete test cases
+1. cf help // show help messages.
+2. cf new {contest_name} // new a contest.
+3. cf case add // add a case
+4. cf case ls // list test cases
+5. cf case del // delete test cases
