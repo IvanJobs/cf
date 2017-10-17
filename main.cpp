@@ -18,12 +18,12 @@ const std::string LS_CASES = "SELECT * FROM cases WHERE tag = ?;";
 const std::string DEL_CASES = "DELETE FROM cases WHERE tag = ? AND id = ?;";
 const std::string SELECT_CASES = "SELECT case_input, case_output FROM cases WHERE tag = ?;";
 
-void new_contest(std::string contest_name) {
+int new_contest(std::string contest_name) {
   // create contest dir
   bfs::path p("./" + contest_name);
   if (!bfs::create_directory(p)) {
     std::cout<<"create dir for " + contest_name + " failed!"<<std::endl;
-    return ;
+    return 1;
   }
   // create db table
   //
@@ -34,11 +34,12 @@ void new_contest(std::string contest_name) {
     trans.commit();
   } catch (std::exception& e) {
     std::cout<<"exception: "<<e.what()<<std::endl;
-    return ;
+    return 2;
   }
+  return 0;
 }
 
-void add_case(std::string source_name) {
+int add_case(std::string source_name) {
   // get case_input/case_output from user input
   // use empty lines to represent end of input
   std::string input, output;
@@ -89,7 +90,7 @@ void add_case(std::string source_name) {
   } catch (std::exception& e) {
     std::cout<<"exception: "<<e.what()<<std::endl;
     std::cout<<GET_MAX_ID<<std::endl;
-    return ;
+    return 2;
   }
 
   try {
@@ -103,11 +104,13 @@ void add_case(std::string source_name) {
   } catch (std::exception& e) {
     std::cout<<"exception: "<<e.what()<<std::endl;
     std::cout<<INSERT_ONE_CASE<<std::endl;
-    return ;
+    return 2;
   }
+
+  return 0;
 }
 
-void ls_case(std::string source_name) {
+int ls_case(std::string source_name) {
   SQLite::Database db("./cf.db3", SQLite::OPEN_READWRITE | SQLite::OPEN_CREATE);
   try {
     SQLite::Statement query(db, LS_CASES.c_str());
@@ -125,16 +128,18 @@ void ls_case(std::string source_name) {
   } catch (std::exception& e) {
     std::cout<<"exception: "<<e.what()<<std::endl;
     std::cout<<LS_CASES<<std::endl;
-    return ;
+    return 2;
   }
+
+  return 0;
 }
 
-void del_case(std::vector<std::string>& case_ids) {
+int del_case(std::vector<std::string>& case_ids) {
   // first case_id is source_name
   //
   if (case_ids.size() < 2) {
     std::cout<<"Wrong format of arguments!"<<std::endl;
-    return ;
+    return 1;
   } 
 
   std::string source_name = case_ids[0];
@@ -154,12 +159,14 @@ void del_case(std::vector<std::string>& case_ids) {
     } catch (std::exception& e) {
       std::cout<<"exception: "<<e.what()<<std::endl;
       std::cout<<DEL_CASES<<std::endl;
-      return ; 
+      return 2; 
     }
   }
+
+  return 0;
 }
 
-void test_case(std::string source_name) {
+int test_case(std::string source_name) {
   // compile source file under current directory.
   //
   int shell_ret = -1;
@@ -168,11 +175,11 @@ void test_case(std::string source_name) {
     shell_ret = std::system(cmd_str.c_str());
   } catch (std::exception& e) {
     std::cout<<"exception: "<<e.what()<<std::endl;
-    return ;
+    return 1;
   }
   if (shell_ret != 0) {
     std::cout<<"exception: shell_ret is not 0, something bad happened during compilationi."<<std::endl;
-    return ;
+    return 2;
   }
 
   // query all cases by source name, write to file under /tmp/{source_name}_cases_input.data,/tmp/{source_name}_cases_ans.data.
@@ -193,11 +200,11 @@ void test_case(std::string source_name) {
   } catch (std::exception& e) {
     std::cout<<"exception: "<<e.what()<<std::endl;
     std::cout<<SELECT_CASES<<std::endl;
-    return ;
+    return 3;
   }
   if (inputs.empty() || anses.empty()) {
     std::cout<<"Strange! Didn't get cases from the database, why?"<<std::endl;
-    return ;
+    return 4;
   } 
 
   // iterate every case, and check.
@@ -223,12 +230,12 @@ void test_case(std::string source_name) {
       shell_ret = std::system(cmd_str.c_str());
     } catch (std::exception& e) {
       std::cout<<"exception: "<<e.what()<<std::endl;
-      return ;
+      return 5;
     }
     if (shell_ret != 0) {
       std::cout<<"cmd_str: "<<cmd_str<<std::endl;
       std::cout<<"bash failed!"<<std::endl;
-      return ;
+      return 6;
     }
 
     shell_ret = -1;
@@ -237,7 +244,7 @@ void test_case(std::string source_name) {
       shell_ret = std::system(cmd_str.c_str());
     } catch (std::exception& e) {
       std::cout<<"exception: "<<e.what()<<std::endl;
-      return ;
+      return 7;
     }
     if (shell_ret != 0) {
       std::cout<<"case num: "<< case_num << " failed!"<<std::endl;
@@ -247,6 +254,8 @@ void test_case(std::string source_name) {
     } else {
       std::cout<<"case "<<case_num<<" Pass!"<<std::endl;
     }
+
+    return 0;
   }
 }
 
@@ -276,32 +285,27 @@ int main(int argc, char* argv[]) {
 
   if (vm.count("new")) {
     std::string contest_name = vm["new"].as<std::string>();
-    new_contest(contest_name);
-    return 0;
+    return new_contest(contest_name);
   }
 
   if (vm.count("case-add")) {
     std::string source_name = vm["case-add"].as<std::string>();
-    add_case(source_name);
-    return 0;
+    return add_case(source_name);
   }
 
   if (vm.count("case-ls")) {
     std::string source_name = vm["case-ls"].as<std::string>();
-    ls_case(source_name);
-    return 0;
+    return ls_case(source_name);
   }
 
   if (vm.count("case-del")) {
     std::vector<std::string> case_ids = vm["case-del"].as<std::vector<std::string> >();
-    del_case(case_ids);
-    return 0;
+    return del_case(case_ids);
   }
 
   if (vm.count("test")) {
     std::string source_name = vm["test"].as<std::string>();
-    test_case(source_name);
-    return 0;
+    return test_case(source_name);
   }
 
   return 0;

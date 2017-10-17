@@ -1,5 +1,5 @@
 # cf
-Command Line Tool For Codeforces.
+Help you speed up testing process during contests of Codeforces for C++ programmer using vim.
 
 # why to develop this project 
 Time limit is important in competitive programming contests. 
@@ -26,3 +26,4 @@ Support options:
 
 # todo list
 1. change GUN option style to subcommand style.
+2. use CMake or Make for compiling.
