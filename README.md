@@ -1,5 +1,5 @@
 # cf
-A CLI tool to *speed up*  testing process during contests of Codeforces.
+A CLI tool to **speed up**  testing process during contests of Codeforces.
 
 It helps you to manage test cases and do regression test.
 
