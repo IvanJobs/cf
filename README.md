@@ -1,5 +1,9 @@
 # cf
-Help you speed up testing process during contests of Codeforces for C++ programmer using vim.
+A CLI tool to *speed up*  testing process during contests of Codeforces.
+
+It helps you to manage test cases and do regression test.
+
+Now it is only for C++ programmer using vim under unix-family env.
 
 # why to develop this project 
 Time limit is important in competitive programming contests. 
