@@ -23,3 +23,6 @@ Support options:
   -d [ --case-del ] arg delete test cases, first one is source name.
   -t [ --test ] arg     run a test suite.
 ```
+
+# todo list
+1. change GNU option style to subcommand style.
