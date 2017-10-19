@@ -254,9 +254,9 @@ int test_case(std::string source_name) {
     } else {
       std::cout<<"case "<<case_num<<" Pass!"<<std::endl;
     }
-
-    return 0;
   }
+  
+  return 0;
 }
 
 int main(int argc, char* argv[]) {
