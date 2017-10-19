@@ -39,6 +39,18 @@ int new_contest(std::string contest_name) {
   return 0;
 }
 
+int new_file(std::string file_name) {
+  std::string cmd_str = "cp /home/vagrant/tpl.cpp ./" + file_name + ".cpp";
+  try {
+    std::system(cmd_str.c_str());
+  } catch (std::exception& e) {
+    std::cout<<"exception: "<<e.what()<<std::endl;
+    return 1;
+  }
+
+  return 0;
+}
+
 int add_case(std::string source_name) {
   // get case_input/case_output from user input
   // use empty lines to represent end of input
@@ -267,6 +279,7 @@ int main(int argc, char* argv[]) {
   desc.add_options()
     ("help,h", "show help message.")
     ("new,n", po::value<std::string>(), "new a contest.")
+    ("file-add,f", po::value<std::string>(), "new a src file, arg is without the type suffix.")
     // case management
     ("case-add,a", po::value<std::string>(), "add A test case,!!!!don't add multiple cases once!!!!! argument is source file name without type suffix.")
     ("case-ls,l", po::value<std::string>(), "list all test cases, argument is source file name without type suffix.")
@@ -286,6 +299,11 @@ int main(int argc, char* argv[]) {
   if (vm.count("new")) {
     std::string contest_name = vm["new"].as<std::string>();
     return new_contest(contest_name);
+  }
+
+  if (vm.count("file-add")) {
+    std::string src_name = vm["file-add"].as<std::string>();
+    return new_file(src_name);
   }
 
   if (vm.count("case-add")) {
