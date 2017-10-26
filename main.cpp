@@ -12,7 +12,7 @@ namespace po = boost::program_options;
 namespace bfs = boost::filesystem;
 
 const std::string CREATE_TABLE_CASES = "CREATE TABLE IF NOT EXISTS cases (id INTEGER PRIMARY KEY, tag TEXT, case_input TEXT, case_output TEXT);";
-const std::string GET_MAX_ID = "SELECT MAX(id) FROM cases WHERE tag = ?;";
+const std::string GET_MAX_ID = "SELECT MAX(id) FROM cases;";
 const std::string INSERT_ONE_CASE = "INSERT INTO cases VALUES (?, ?, ?, ?);";
 const std::string LS_CASES = "SELECT * FROM cases WHERE tag = ?;";
 const std::string DEL_CASES = "DELETE FROM cases WHERE tag = ? AND id = ?;";
@@ -104,7 +104,7 @@ int add_case(std::string source_name) {
     std::cout<<GET_MAX_ID<<std::endl;
     return 2;
   }
-
+  
   try {
     SQLite::Statement query(db, INSERT_ONE_CASE.c_str());
     query.bind(1, max_id + 1);
