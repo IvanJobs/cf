@@ -40,7 +40,7 @@ int new_contest(std::string contest_name) {
 }
 
 int new_file(std::string file_name) {
-  std::string cmd_str = "cp /home/vagrant/tpl.cpp ./" + file_name + ".cpp";
+  std::string cmd_str = "cp ~/tpl.cpp ./" + file_name + ".cpp";
   try {
     std::system(cmd_str.c_str());
   } catch (std::exception& e) {
