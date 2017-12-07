@@ -31,3 +31,4 @@ Support options:
 # todo list
 1. change GUN option style to subcommand style.
 2. use CMake or Make for compiling.
+3. auto submission, ref:https://github.com/atupal/oj/blob/master/poj/submit.py
